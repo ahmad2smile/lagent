@@ -1,19 +1,18 @@
+use colored::Colorize;
 use futures::StreamExt;
 use rig::{
     Agent,
     agent::MultiTurnStreamItem,
     client::AgentClientExt,
-    completion::Prompt,
     message::Message,
     providers::openai,
-    streaming::{StreamedAssistantContent, StreamedUserContent, StreamingPrompt},
+    streaming::{
+        StreamedAssistantContent, StreamedUserContent, StreamingPrompt, ToolCallDeltaContent,
+    },
 };
-use tokio::{
-    io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader, Stdin, Stdout},
-    stream,
-};
+use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader, Stdin, Stdout};
 
-mod tools;
+mod utils;
 
 const MAX_TOKENS: u64 = 8192;
 const SYSTEM_PROMPT: &str = r#"You are lagent, an interactive AI coding agent.
@@ -29,7 +28,7 @@ async fn loop_handler(
     stdout: &mut Stdout,
     history: &mut Vec<Message>,
 ) -> Result<bool, anyhow::Error> {
-    print!("> ");
+    stdout.write_all(b"> ").await?;
     stdout.flush().await?;
 
     let mut input = String::new();
@@ -57,64 +56,74 @@ async fn loop_handler(
                     .max_turns(100)
                     .await;
 
-                let mut response = String::new();
-                let mut input_tokens = 0u64;
-                let mut output_tokens = 0u64;
-
                 while let Some(chunk) = stream.next().await {
                     match chunk {
                         Ok(item) => match item {
                             MultiTurnStreamItem::StreamAssistantItem(streamed_assistant_item) => {
                                 match streamed_assistant_item {
                                     StreamedAssistantContent::Text(text) => {
-                                        println!("Text: {}", text.text)
+                                        print!("{}", text.text)
                                     }
                                     StreamedAssistantContent::ToolCall {
                                         tool_call,
-                                        internal_call_id,
+                                        internal_call_id: _,
                                     } => {
-                                        println!("Tool call: {:?}", tool_call.signature)
+                                        println!("\nTool call: {:?}", tool_call.signature)
                                     }
                                     StreamedAssistantContent::ToolCallDelta {
-                                        internal_call_id,
+                                        internal_call_id: _,
                                         content,
-                                    } => {
-                                        println!("Tool call delta: {:?}", content)
-                                    }
-                                    StreamedAssistantContent::Reasoning { reasoning, id } => {
-                                        todo!()
+                                    } => match content {
+                                        ToolCallDeltaContent::Name(name) => {
+                                            print!("{name}")
+                                        }
+                                        ToolCallDeltaContent::Delta(delta) => {
+                                            print!("{delta}")
+                                        }
+                                    },
+                                    StreamedAssistantContent::Reasoning { reasoning, id: _ } => {
+                                        print!("{}", reasoning.display_text().bright_black());
                                     }
                                     StreamedAssistantContent::ReasoningDelta {
-                                        id,
-                                        provider_id,
+                                        id: _,
+                                        provider_id: _,
                                         reasoning,
-                                    } => todo!(),
-                                    StreamedAssistantContent::Final(stream_final) => todo!(),
-                                    StreamedAssistantContent::Unknown(unknown_payload) => todo!(),
+                                    } => print!("{}", reasoning.bright_black()),
+                                    StreamedAssistantContent::Final(stream_final) => println!(
+                                        "\nTotal Tokens: {}",
+                                        stream_final.usage.total_tokens
+                                    ),
+                                    StreamedAssistantContent::Unknown(unknown_payload) => {
+                                        println!("\nUnknow payload: {:?}", unknown_payload)
+                                    }
                                 }
                             }
                             MultiTurnStreamItem::ToolExecutionCommitted {
-                                tool_call,
+                                tool_call: _,
                                 internal_call_id,
-                            } => todo!(),
+                            } => println!("\n{tool_call}", tool_call = internal_call_id),
                             MultiTurnStreamItem::StreamUserItem(streamed_user_item) => {
                                 match streamed_user_item {
                                     StreamedUserContent::ToolResult {
                                         tool_result,
-                                        internal_call_id,
-                                    } => todo!(),
+                                        internal_call_id: _,
+                                    } => {
+                                        println!("\n{:?}", tool_result)
+                                    }
                                 }
                             }
                             MultiTurnStreamItem::CompletionCall(completion_call) => {
-                                println!("Completition: {}", completion_call.usage.total_tokens)
+                                println!("\nCompletition: {}", completion_call.usage.total_tokens)
                             }
-                            MultiTurnStreamItem::ModelTurnRetried { turn } => todo!(),
+                            MultiTurnStreamItem::ModelTurnRetried { turn } => {
+                                println!("\nModel turn retired: {turn}")
+                            }
                             MultiTurnStreamItem::FinalResponse(prompt_response) => {
-                                println!("Final Res: {}", prompt_response.output)
+                                println!("\nFinal Res: {}", prompt_response.output)
                             }
                         },
                         Err(e) => {
-                            println!("Error: {}", e);
+                            println!("\nError: {}", e);
                         }
                     }
                 }
@@ -122,10 +131,6 @@ async fn loop_handler(
                 println!("");
 
                 history.push(Message::user(input));
-
-                if !response.is_empty() {
-                    history.push(Message::assistant(response));
-                }
             }
 
             return Ok(true);
@@ -135,9 +140,9 @@ async fn loop_handler(
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    let client = openai::Client::builder()
-        .base_url("http://localhost:8080/v1".to_string())
-        .api_key("no-key")
+    let client = openai::CompletionsClient::builder()
+        .base_url("http://localhost:8080/v1/".to_string())
+        .api_key("sk-no-key")
         .build()?;
 
     let mut stdin = BufReader::new(io::stdin());
@@ -145,16 +150,12 @@ async fn main() -> Result<(), anyhow::Error> {
     let mut history: Vec<Message> = vec![];
 
     let agent = client
-        .agent("LFM2.5-2.6B")
+        .agent("Qwen3.8-9B")
         .preamble(SYSTEM_PROMPT)
-        .tool(tools::ReadFile)
-        .tool(tools::WriteFile)
+        .tool(utils::tools::ReadFile)
+        .tool(utils::tools::WriteFile)
         .max_tokens(MAX_TOKENS)
         .build();
-
-    let res = agent.prompt("What is Rust programming language?").await?;
-
-    println!("{res}");
 
     loop {
         if !loop_handler(&agent, &mut stdin, &mut stdout, &mut history).await? {

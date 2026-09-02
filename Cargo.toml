@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.104"
+colored = "3.1.1"
 futures = "0.3.34"
 rig = "0.42.0"
 serde = { version = "1.0.229", features = ["derive"] }
