@@ -154,6 +154,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .preamble(SYSTEM_PROMPT)
         .tool(utils::tools::ReadFile)
         .tool(utils::tools::WriteFile)
+        .tool(utils::tools::ListDir)
         .max_tokens(MAX_TOKENS)
         .build();
 
