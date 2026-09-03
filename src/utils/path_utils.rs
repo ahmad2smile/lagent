@@ -1,6 +1,6 @@
 use std::{
     env, fs,
-    io::{self, BufRead, BufReader},
+    io::{BufRead, BufReader},
     path::{Path, PathBuf},
 };
 
@@ -41,14 +41,15 @@ pub(super) fn read_file(
 ) -> anyhow::Result<String> {
     let file = BufReader::new(fs::File::open(&path)?);
 
-    let iter = file.lines().skip(lines_to_skip.unwrap_or(0));
+    let lines = file
+        .split(b'\n')
+        .skip(lines_to_skip.unwrap_or(0))
+        .take(lines_to_read.unwrap_or(usize::MAX))
+        .map(|res| res.map(|bytes| String::from_utf8_lossy(&bytes).into_owned()))
+        .collect::<Result<Vec<String>, _>>()?
+        .join("\n");
 
-    let lines: Result<String, io::Error> = match lines_to_read {
-        Some(take) => iter.take(take).collect(),
-        None => iter.collect(),
-    };
-
-    return Ok(lines?);
+    Ok(lines)
 }
 
 #[cfg(test)]
@@ -81,5 +82,24 @@ mod tests {
             assert_cwd_permission(&path, "").unwrap_err().to_string(),
             format!("path can not contain dir traverse sequence")
         );
+    }
+
+    #[test]
+    fn test_read_file_reads_all() {
+        let test_dir = env::current_dir().unwrap().join("target/lagent_test");
+
+        if !test_dir.exists() {
+            fs::create_dir(&test_dir).unwrap();
+        }
+
+        let test_file = test_dir.join("test_file.txt");
+
+        let content = "line1\nline2\nline3\nline4\nline5";
+        fs::write(&test_file, content).unwrap();
+
+        let result = read_file(&test_file, None, None).unwrap();
+        assert_eq!(result, content);
+
+        fs::remove_dir_all(&test_dir).unwrap();
     }
 }

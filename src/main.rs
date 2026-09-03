@@ -41,12 +41,20 @@ async fn loop_handler(
         _ => {
             let input = input.trim();
 
-            if input.eq_ignore_ascii_case("exit")
-                || input.eq_ignore_ascii_case("quit")
+            if input.eq_ignore_ascii_case("/exit")
+                || input.eq_ignore_ascii_case("/quit")
                 || input.eq_ignore_ascii_case("/q")
             {
                 println!("Ciao");
                 return Ok(false);
+            }
+
+            if input.eq_ignore_ascii_case("/clear") {
+                history.clear();
+                println!("-----------------------------------------");
+                println!("---------------New Session---------------");
+                println!("-----------------------------------------");
+                return Ok(true);
             }
 
             if !input.is_empty() {
