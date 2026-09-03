@@ -1,5 +1,6 @@
 use std::{
-    env,
+    env, fs,
+    io::{self, BufRead, BufReader},
     path::{Path, PathBuf},
 };
 
@@ -31,6 +32,22 @@ pub(super) fn assert_cwd_permission(path: &Path, error: &str) -> anyhow::Result<
     }
 
     Ok(())
+}
+
+pub(super) fn read_file(
+    path: &Path,
+    lines_to_skip: Option<usize>,
+    lines_to_read: Option<usize>,
+) -> anyhow::Result<String> {
+    let file = BufReader::new(fs::File::open(&path)?);
+
+    let lines = file
+        .lines()
+        .skip(lines_to_skip.unwrap_or(0))
+        .take(lines_to_read.unwrap_or(0))
+        .collect::<Result<String, io::Error>>()?;
+
+    return Ok(lines);
 }
 
 #[cfg(test)]

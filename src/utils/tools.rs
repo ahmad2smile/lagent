@@ -10,7 +10,11 @@ use std::{
     description = "Read the contents of a file at the specified path. Returns the file content as a string.",
     required(path_string)
 )]
-pub async fn read_file(path_string: String) -> Result<String, ToolExecutionError> {
+pub async fn read_file(
+    path_string: String,
+    lines_offset: Option<usize>,
+    lines_to_read: Option<usize>,
+) -> Result<String, ToolExecutionError> {
     let path = path_utils::to_abs_path(Path::new(&path_string))
         .map_err(|e| ToolExecutionError::other(format!("{e}")))?;
 
@@ -20,7 +24,7 @@ pub async fn read_file(path_string: String) -> Result<String, ToolExecutionError
     )
     .map_err(|e| ToolExecutionError::other(format!("{e}")))?;
 
-    std::fs::read_to_string(&path).map_err(|e| {
+    path_utils::read_file(&path, lines_offset, lines_to_read).map_err(|e| {
         ToolExecutionError::other(format!(
             "Failed to read file '{path}': {e}",
             path = path.display()
