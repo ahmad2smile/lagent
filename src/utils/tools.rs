@@ -7,12 +7,12 @@ use std::{
 };
 
 #[rig::tool_macro(
-    description = "Read the contents of a file at the specified path. Returns the file content as a string.",
+    description = "Read the contents of a file at the specified path. Returns the file content as a string. Supports reading partial files by specifying lines_to_skip and lines_to_read parameters.",
     required(path_string)
 )]
 pub async fn read_file(
     path_string: String,
-    lines_offset: Option<usize>,
+    lines_to_skip: Option<usize>,
     lines_to_read: Option<usize>,
 ) -> Result<String, ToolExecutionError> {
     let path = path_utils::to_abs_path(Path::new(&path_string))
@@ -24,7 +24,7 @@ pub async fn read_file(
     )
     .map_err(|e| ToolExecutionError::other(format!("{e}")))?;
 
-    path_utils::read_file(&path, lines_offset, lines_to_read).map_err(|e| {
+    path_utils::read_file(&path, lines_to_skip, lines_to_read).map_err(|e| {
         ToolExecutionError::other(format!(
             "Failed to read file '{path}': {e}",
             path = path.display()
