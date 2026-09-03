@@ -41,13 +41,14 @@ pub(super) fn read_file(
 ) -> anyhow::Result<String> {
     let file = BufReader::new(fs::File::open(&path)?);
 
-    let lines = file
-        .lines()
-        .skip(lines_to_skip.unwrap_or(0))
-        .take(lines_to_read.unwrap_or(0))
-        .collect::<Result<String, io::Error>>()?;
+    let iter = file.lines().skip(lines_to_skip.unwrap_or(0));
 
-    return Ok(lines);
+    let lines: Result<String, io::Error> = match lines_to_read {
+        Some(take) => iter.take(take).collect(),
+        None => iter.collect(),
+    };
+
+    return Ok(lines?);
 }
 
 #[cfg(test)]
