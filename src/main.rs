@@ -76,19 +76,15 @@ async fn loop_handler(
                                         tool_call,
                                         internal_call_id: _,
                                     } => {
-                                        println!("\nTool call: {:?}", tool_call.signature)
+                                        println!(
+                                            "\nTool Started: {:?}",
+                                            tool_call.function.name.bright_black()
+                                        )
                                     }
                                     StreamedAssistantContent::ToolCallDelta {
                                         internal_call_id: _,
                                         content,
-                                    } => match content {
-                                        ToolCallDeltaContent::Name(name) => {
-                                            print!("{name}")
-                                        }
-                                        ToolCallDeltaContent::Delta(delta) => {
-                                            print!("{delta}")
-                                        }
-                                    },
+                                    } => print!("{:?}", content),
                                     StreamedAssistantContent::Reasoning { reasoning, id: _ } => {
                                         print!("{}", reasoning.display_text().bright_black());
                                     }
@@ -116,7 +112,7 @@ async fn loop_handler(
                                         tool_result,
                                         internal_call_id: _,
                                     } => {
-                                        println!("\n{:?}", tool_result)
+                                        println!("\nTool Success: {}", tool_result.name)
                                     }
                                 }
                             }

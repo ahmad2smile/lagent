@@ -37,6 +37,28 @@ Then in your terminal, you can interact with the agent:
 > exit
 ```
 
+## Environment Variables
+
+The following environment variables can be used to configure the agent:
+
+| Variable         | Description                      | Default                     |
+| ---------------- | -------------------------------- | --------------------------- |
+| `LLM_BASE_URL`   | The base URL of the LLM endpoint | `http://localhost:8080/v1/` |
+| `LLM_API_KEY`    | The API key for authentication   | `sk-no-key`                 |
+| `LLM_MODEL`      | The model name to use            | `Qwen3.8-9B`                |
+| `LLM_MAX_TOKENS` | Maximum tokens per response      | `8192`                      |
+
+### Example
+
+```bash
+export LLM_BASE_URL="http://localhost:11434/v1/"
+export LLM_API_KEY="ollama"
+export LLM_MODEL="llama3.2"
+export LLM_MAX_TOKENS="4096"
+
+lagent
+```
+
 ## Tools
 
 | Tool         | Description                                                          |
@@ -47,11 +69,7 @@ Then in your terminal, you can interact with the agent:
 
 ### Tool Permissions
 
-All tools are **sandboxed** to the current working directory:
-
-- Paths are resolved relative to the current directory
-- Traversal sequences like `..` are blocked
-- Access outside the cwd is denied with a clear error message
+All tools are **sandboxed** to the current working directory. Paths are resolved relative to the cwd, traversal sequences like `..` are blocked, and access outside the cwd is denied.
 
 ## Architecture
 
@@ -64,15 +82,6 @@ lagent
 │       ├── tools.rs     # Tool definitions (read_file, write_file, list_dir)
 │       └── path_utils.rs # Path resolution and sandbox checks
 ```
-
-## Configuration
-
-The agent uses the following defaults:
-
-- **Model:** `Qwen3.8-9B`
-- **Base URL:** `http://localhost:8080/v1/`
-- **API Key:** `sk-no-key` (no authentication required)
-- **Max Tokens:** `8192`
 
 ## Dependencies
 
