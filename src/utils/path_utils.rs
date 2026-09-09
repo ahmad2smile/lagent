@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::{anyhow, bail};
 
-pub(super) fn to_abs_path(path: &Path) -> anyhow::Result<PathBuf> {
+pub(crate) fn to_abs_path(path: &Path) -> anyhow::Result<PathBuf> {
     if path.is_absolute() {
         Ok(path.to_path_buf())
     } else {
@@ -14,7 +14,7 @@ pub(super) fn to_abs_path(path: &Path) -> anyhow::Result<PathBuf> {
     }
 }
 
-pub(super) fn assert_cwd_permission(path: &Path, error: &str) -> anyhow::Result<()> {
+pub(crate) fn assert_cwd_permission(path: &Path, error: &str) -> anyhow::Result<()> {
     let cwd_path = env::current_dir()?;
 
     if path.components().any(|c| c == Component::ParentDir) {
@@ -32,7 +32,7 @@ pub(super) fn assert_cwd_permission(path: &Path, error: &str) -> anyhow::Result<
     Ok(())
 }
 
-pub(super) fn read_file(
+pub(crate) fn read_file(
     path: &Path,
     lines_to_skip: Option<usize>,
     lines_to_read: Option<usize>,

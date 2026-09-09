@@ -12,6 +12,9 @@ use rig::{
 };
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader, Stdin, Stdout};
 
+use crate::{tools::commands::Commands, utils::executor_utils};
+
+mod tools;
 mod utils;
 
 const MAX_TOKENS: u64 = 8192;
@@ -40,29 +43,34 @@ async fn loop_handler(
         }
         _ => {
             let input = input.trim();
+            let command = Commands::from(input);
 
-            if input.eq_ignore_ascii_case("/exit")
-                || input.eq_ignore_ascii_case("/quit")
-                || input.eq_ignore_ascii_case("/q")
-            {
-                println!("Ciao");
-                return Ok(false);
-            }
+            match command {
+                Commands::Exit => {
+                    println!("Ciao");
+                    return Ok(false);
+                }
+                Commands::New => {
+                    history.clear();
+                    println!("-----------------------------------------");
+                    println!("---------------New Session---------------");
+                    println!("-----------------------------------------");
+                    return Ok(true);
+                }
+                Commands::Run(command_str) => {
+                    let result = match executor_utils::run_shell(command_str) {
+                        Ok(res) => format!("{command_str}\n Result:\n {res}"),
+                        Err(err) => format!("{command_str}\n Error:\n {err}"),
+                    };
 
-            if input.eq_ignore_ascii_case("/clear") {
-                history.clear();
-                println!("-----------------------------------------");
-                println!("---------------New Session---------------");
-                println!("-----------------------------------------");
-                return Ok(true);
-            }
+                    history.push(Message::user(result));
+                }
+                Commands::Help => println!("Run commands: !ls or Send message as normal chat"),
+                Commands::None => println!("Unknown command"),
+            };
 
             if !input.is_empty() {
-                let mut stream = agent
-                    .stream_prompt(input)
-                    .history(history.iter())
-                    .max_turns(100)
-                    .await;
+                let mut stream = agent.stream_prompt(input).history(history.iter()).await;
 
                 while let Some(chunk) = stream.next().await {
                     match chunk {
@@ -84,7 +92,14 @@ async fn loop_handler(
                                     StreamedAssistantContent::ToolCallDelta {
                                         internal_call_id: _,
                                         content,
-                                    } => print!("{:?}", content),
+                                    } => match content {
+                                        ToolCallDeltaContent::Name(name) => {
+                                            print!("\nTool Delta: {}\n", name.bright_black())
+                                        }
+                                        ToolCallDeltaContent::Delta(delta) => {
+                                            print!("{}", delta.bright_black())
+                                        }
+                                    },
                                     StreamedAssistantContent::Reasoning { reasoning, id: _ } => {
                                         print!("{}", reasoning.display_text().bright_black());
                                     }
@@ -103,16 +118,22 @@ async fn loop_handler(
                                 }
                             }
                             MultiTurnStreamItem::ToolExecutionCommitted {
-                                tool_call: _,
-                                internal_call_id,
-                            } => println!("\n{tool_call}", tool_call = internal_call_id),
+                                tool_call,
+                                internal_call_id: _,
+                            } => println!(
+                                "\nTool Commited: {}",
+                                tool_call.function.name.bright_black()
+                            ),
                             MultiTurnStreamItem::StreamUserItem(streamed_user_item) => {
                                 match streamed_user_item {
                                     StreamedUserContent::ToolResult {
                                         tool_result,
                                         internal_call_id: _,
                                     } => {
-                                        println!("\nTool Success: {}", tool_result.name)
+                                        println!(
+                                            "\nTool Success: {}",
+                                            tool_result.name.bright_black()
+                                        )
                                     }
                                 }
                             }
@@ -156,9 +177,9 @@ async fn main() -> Result<(), anyhow::Error> {
     let agent = client
         .agent("Qwen3.8-9B")
         .preamble(SYSTEM_PROMPT)
-        .tool(utils::tools::ReadFile)
-        .tool(utils::tools::WriteFile)
-        .tool(utils::tools::ListDir)
+        .tool(tools::filesystem::ReadFile)
+        .tool(tools::filesystem::WriteFile)
+        .tool(tools::filesystem::ListDir)
         .max_tokens(MAX_TOKENS)
         .build();
 

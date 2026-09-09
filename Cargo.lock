@@ -3065,6 +3065,7 @@ name = "lagent"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "colored",
  "futures",
  "rig",
