@@ -8,12 +8,7 @@ mod tools;
 mod utils;
 
 const MAX_TOKENS: u64 = 8192;
-const SYSTEM_PROMPT: &str = r#"You are lagent, an interactive AI coding agent.
-
-You have access to following tools:
-- read_file: Read file contents
-- write_file: Create or replace file contents
-"#;
+const SYSTEM_PROMPT: &str = r#"You are lagent, an interactive AI coding agent."#;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -28,20 +23,14 @@ async fn main() -> anyhow::Result<()> {
     let mut stdin = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
     let mut history: Vec<Message> = vec![];
+    let (tools, _keep_these_services_alive) = get_mcp_tools(config).await;
 
-    let mut agent_builder = client
+    let agent = client
         .agent("Qwen3.8-9B")
         .preamble(SYSTEM_PROMPT)
-        .tool(tools::filesystem::ReadFile)
-        .tool(tools::filesystem::WriteFile)
-        .tool(tools::filesystem::ListDir)
-        .max_tokens(MAX_TOKENS);
-
-    for (tools, mcp_client) in get_mcp_tools(config.mcp_servers).await {
-        agent_builder = agent_builder.rmcp_tools(tools, mcp_client);
-    }
-
-    let agent = agent_builder.build();
+        .tool_server_handle(tools)
+        .max_tokens(MAX_TOKENS)
+        .build();
 
     loop {
         if !agent_loop::loop_handler(&agent, &mut stdin, &mut stdout, &mut history).await? {
