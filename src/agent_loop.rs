@@ -56,7 +56,20 @@ pub(crate) async fn loop_handler(
                     println!("{result}");
                     history.push(Message::user(result));
                 }
-                Commands::Help => println!("Run commands: !ls or Send message as normal chat"),
+                Commands::Help => {
+                    println!(
+                        r#"
+| Command                | Description                                                                |
+| ---------------------- | -------------------------------------------------------------------------- |
+| `/exit`, `/quit`, `/q` | Exit the agent and return to the terminal                                  |
+| `/help`, `/?`          | Show available commands                                                    |
+| `/clear`, `/new`       | Clear the conversation / start a new session                               |
+| `!<any>`               | Use this to provide output of some command to agent only, ex: `cargo test` |
+                    "#
+                    );
+
+                    return Ok(true);
+                }
                 Commands::None => {}
             };
 

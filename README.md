@@ -1,8 +1,8 @@
-# lagent
+# la' Agent
 
 Minimalistic and focused on Security by tool use restrictions but still in auto mode. No permissions model.
 
-NOTE: Code is handcrafted but docs (+anything below) is AI written but manually reviewed and edited.
+NOTE: Code is handcrafted but docs (+anything below) is AI written using this lagent but manually reviewed and edited.
 
 ## Features
 
@@ -37,8 +37,17 @@ Then in your terminal, you can interact with the agent:
 > Read the file ./README.md
 > List the contents of ./src
 > Write a new file with the greeting "Hello from lagent!"
-> exit
+> /help
 ```
+
+## Commands
+
+| Command                | Description                                                                |
+| ---------------------- | -------------------------------------------------------------------------- |
+| `/exit`, `/quit`, `/q` | Exit the agent and return to the terminal                                  |
+| `/help`, `/?`          | Show available commands                                                    |
+| `/clear`, `/new`       | Clear the conversation / start a new session                               |
+| `!<any>`               | Use this to provide output of some command to agent only, ex: `cargo test` |
 
 ## Environment Variables
 
