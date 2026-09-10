@@ -58,11 +58,12 @@ async fn loop_handler(
                     return Ok(true);
                 }
                 Commands::Run(command_str) => {
-                    let result = match executor_utils::run_shell(command_str) {
-                        Ok(res) => format!("{command_str}\n Result:\n {res}"),
-                        Err(err) => format!("{command_str}\n Error:\n {err}"),
+                    let result = match executor_utils::run_shell(command_str).await {
+                        Ok(res) => format!("{command_str}\nResult:\n{res}"),
+                        Err(err) => format!("{command_str}\nError:\n{err}"),
                     };
 
+                    println!("{result}");
                     history.push(Message::user(result));
                 }
                 Commands::Help => println!("Run commands: !ls or Send message as normal chat"),
@@ -70,7 +71,11 @@ async fn loop_handler(
             };
 
             if !input.is_empty() {
-                let mut stream = agent.stream_prompt(input).history(history.iter()).await;
+                let mut stream = agent
+                    .stream_prompt(input)
+                    .max_turns(100)
+                    .history(history.iter())
+                    .await;
 
                 while let Some(chunk) = stream.next().await {
                     match chunk {
@@ -81,27 +86,25 @@ async fn loop_handler(
                                         print!("{}", text.text)
                                     }
                                     StreamedAssistantContent::ToolCall {
-                                        tool_call,
+                                        tool_call: _,
                                         internal_call_id: _,
-                                    } => {
-                                        println!(
-                                            "\nTool Started: {:?}",
-                                            tool_call.function.name.bright_black()
-                                        )
-                                    }
+                                    } => {}
                                     StreamedAssistantContent::ToolCallDelta {
                                         internal_call_id: _,
                                         content,
                                     } => match content {
                                         ToolCallDeltaContent::Name(name) => {
-                                            print!("\nTool Delta: {}\n", name.bright_black())
+                                            print!("\n{}\n", name.bright_black())
                                         }
                                         ToolCallDeltaContent::Delta(delta) => {
                                             print!("{}", delta.bright_black())
                                         }
                                     },
                                     StreamedAssistantContent::Reasoning { reasoning, id: _ } => {
-                                        print!("{}", reasoning.display_text().bright_black());
+                                        print!(
+                                            "Reasoning: {}",
+                                            reasoning.display_text().bright_black()
+                                        );
                                     }
                                     StreamedAssistantContent::ReasoningDelta {
                                         id: _,
@@ -118,27 +121,25 @@ async fn loop_handler(
                                 }
                             }
                             MultiTurnStreamItem::ToolExecutionCommitted {
-                                tool_call,
+                                tool_call: _,
                                 internal_call_id: _,
-                            } => println!(
-                                "\nTool Commited: {}",
-                                tool_call.function.name.bright_black()
-                            ),
+                            } => {}
                             MultiTurnStreamItem::StreamUserItem(streamed_user_item) => {
                                 match streamed_user_item {
                                     StreamedUserContent::ToolResult {
                                         tool_result,
                                         internal_call_id: _,
                                     } => {
-                                        println!(
-                                            "\nTool Success: {}",
-                                            tool_result.name.bright_black()
-                                        )
+                                        println!("\nTool Call: {}", tool_result.name.bright_black())
                                     }
                                 }
                             }
                             MultiTurnStreamItem::CompletionCall(completion_call) => {
-                                println!("\nCompletition: {}", completion_call.usage.total_tokens)
+                                let reson = match completion_call.finish_reason {
+                                    Some(reason) => format!("{:?}", reason),
+                                    None => "No Reason Found".to_string(),
+                                };
+                                println!("\nCompletion: {}", reson.bright_black())
                             }
                             MultiTurnStreamItem::ModelTurnRetried { turn } => {
                                 println!("\nModel turn retired: {turn}")
