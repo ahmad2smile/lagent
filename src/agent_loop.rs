@@ -57,7 +57,7 @@ pub(crate) async fn loop_handler(
                     history.push(Message::user(result));
                 }
                 Commands::Help => println!("Run commands: !ls or Send message as normal chat"),
-                Commands::None => println!("Unknown command"),
+                Commands::None => {}
             };
 
             let mut stream = agent

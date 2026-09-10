@@ -7,29 +7,25 @@ mod agent_loop;
 mod tools;
 mod utils;
 
-const MAX_TOKENS: u64 = 8192;
-const SYSTEM_PROMPT: &str = r#"You are lagent, an interactive AI coding agent."#;
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = Config::from_env();
 
-    let client = openai::CompletionsClient::builder()
-        .base_url("http://localhost:8080/v1/".to_string())
-        .api_key("sk-no-key")
-        .build()
-        .map_err(|err| anyhow::anyhow!("Failed to connect to the LLM Provider: {err}"))?;
-
     let mut stdin = BufReader::new(io::stdin());
     let mut stdout = io::stdout();
     let mut history: Vec<Message> = vec![];
-    let (tools, _keep_these_services_alive) = get_mcp_tools(config).await;
+    // NOTE: Hack to keep ref to MCP services, so connection stays alive
+    let (tools, _keep_these_services_alive) = get_mcp_tools(config.clone()).await;
 
-    let agent = client
-        .agent("Qwen3.8-9B")
-        .preamble(SYSTEM_PROMPT)
+    let agent = openai::CompletionsClient::builder()
+        .base_url(config.base_url)
+        .api_key(config.api_key)
+        .build()
+        .map_err(|err| anyhow::anyhow!("Failed to connect to the LLM Provider: {err}"))?
+        .agent(config.model)
+        .preamble(&config.system_prompt)
         .tool_server_handle(tools)
-        .max_tokens(MAX_TOKENS)
+        .max_tokens(config.max_token)
         .build();
 
     loop {
