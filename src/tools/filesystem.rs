@@ -86,7 +86,7 @@ pub async fn list_dir(path_string: String) -> anyhow::Result<Vec<String>, ToolEx
         .and_then(|read_dir| {
             read_dir
                 .map(|res| {
-                    res.and_then(|dir| match dir.path().into_string() {
+                    res.and_then(|dir| match dir.path().into_os_string().into_string() {
                         Ok(name) => Ok(name),
                         Err(_) => Err(Error::new(ErrorKind::InvalidData, "Invalid dir name")),
                     })

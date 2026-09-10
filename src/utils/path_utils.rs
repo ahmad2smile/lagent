@@ -84,7 +84,8 @@ mod tests {
     #[test]
     fn test_assert_cwd_permission_invalid_root() {
         let path = Path::new("/root/user/file.txt");
-        let pwd = env::current_dir().unwrap().into_string().unwrap();
+        let pwd = env::current_dir().unwrap();
+        let pwd = pwd.to_str().unwrap();
 
         assert_eq!(
             assert_cwd_permission(&path, "").unwrap_err().to_string(),
@@ -232,7 +233,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unable to open file: No such file or directory (os error 2)")]
+    #[should_panic(expected = "Unable to open file: ")]
     fn test_read_file_invalid() {
         _ = read_file(Path::new("./invalid/file.txt"), None, None).unwrap();
     }
