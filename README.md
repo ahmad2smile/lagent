@@ -1,6 +1,8 @@
 # lagent
 
-An interactive AI coding agent CLI built with Rust, designed to work with local LLM endpoints.
+Minimalistic and focused on Security by tool use restrictions but still in auto mode. No permissions model.
+
+NOTE: Code is handcrafted but docs (+anything below) is AI written but manually reviewed and edited.
 
 ## Features
 
@@ -15,6 +17,7 @@ An interactive AI coding agent CLI built with Rust, designed to work with local 
 
 - [Rust](https://www.rust-lang.org/tools/install)
 - A local LLM server (e.g., [Ollama](https://ollama.ai)) running on `http://localhost:8080`
+- [MCP servers](https://modelcontextprotocol.io/introduction) (optional, for remote tool integration)
 
 ## Installation
 
@@ -47,14 +50,16 @@ The following environment variables can be used to configure the agent:
 | `LLM_API_KEY`    | The API key for authentication   | `sk-no-key`                 |
 | `LLM_MODEL`      | The model name to use            | `Qwen3.8-9B`                |
 | `LLM_MAX_TOKENS` | Maximum tokens per response      | `8192`                      |
+| `MCP_SERVERS`    | Comma-separated MCP server URLs  | `http://127.0.0.1:8765/mcp` |
 
 ### Example
 
 ```bash
-export LLM_BASE_URL="http://localhost:11434/v1/"
-export LLM_API_KEY="ollama"
-export LLM_MODEL="llama3.2"
+export LLM_BASE_URL="http://localhost:8080/v1/"
+export LLM_API_KEY="sk-no-key"
+export LLM_MODEL="Qwen3.8-9B"
 export LLM_MAX_TOKENS="4096"
+export MCP_SERVERS="http://127.0.0.1:8765/mcp"
 
 lagent
 ```
@@ -76,20 +81,19 @@ All tools are **sandboxed** to the current working directory. Paths are resolved
 ```
 lagent
 ├── src/
-│   ├── main.rs          # Entry point, agent setup, CLI loop
-│   └── utils/
-│       ├── mod.rs       # Module exports
-│       ├── tools.rs     # Tool definitions (read_file, write_file, list_dir)
-│       └── path_utils.rs # Path resolution and sandbox checks
+│   ├── main.rs              # Entry point, config, CLI setup
+│   ├── agent_loop.rs        # Interactive CLI handler with streaming responses
+│   ├── tools/               # Tool definitions and execution
+│   │   ├── mod.rs           # Tool module exports
+│   │   ├── commands.rs      # CLI command parsing
+│   │   ├── filesystem.rs    # File operations (read, write, list)
+│   │   └── mcp_tools.rs     # MCP service registration
+│   └── utils/               # Utilities
+│       ├── mod.rs           # Utility module exports
+│       ├── config.rs        # Environment variable parsing
+│       ├── executor_utils.rs # Shell command execution
+│       └── path_utils.rs    # Path resolution and sandbox checks
 ```
-
-## Dependencies
-
-- `rig` — Agent and tool orchestration framework
-- `tokio` — Async runtime
-- `serde` / `serde_json` — Serialization
-- `colored` — Colored terminal output
-- `anyhow` — Error handling
 
 ## License
 
